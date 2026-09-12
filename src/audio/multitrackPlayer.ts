@@ -37,12 +37,28 @@ export class MultiTrackPlayer {
         const source = context.createBufferSource()
         source.buffer = buffer
         source.connect(gain)
-        source.start(startAt)
+        const trim = Math.min(track.alignment?.trimSeconds ?? 0, Math.max(0, buffer.duration - .02))
+        source.start(startAt, trim)
         this.sources.push(source)
       } else {
         await this.tonePlayer.schedule({ notes: placeholderNotes[track.id], gain: .065, timbre: 'voice', destination: gain, when: startAt })
       }
     }))
+  }
+
+  async playSingle(track: RecordingTrack): Promise<void> {
+    if (!track.blob) return
+    this.stop()
+    const context = await resumeAudioContext()
+    const buffer = await context.decodeAudioData((await track.blob.arrayBuffer()).slice(0))
+    const source = context.createBufferSource()
+    const gain = context.createGain()
+    gain.gain.value = track.volume
+    source.buffer = buffer
+    source.connect(gain).connect(context.destination)
+    const trim = Math.min(track.alignment?.trimSeconds ?? 0, Math.max(0, buffer.duration - .02))
+    source.start(context.currentTime + .04, trim)
+    this.sources.push(source)
   }
 
   stop(): void {

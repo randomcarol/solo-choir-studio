@@ -23,7 +23,13 @@ export class SessionRecorder {
       throw new Error('当前浏览器不支持录音，请使用模拟占位继续体验')
     }
     if (!this.stream || this.stream.getTracks().every((track) => track.readyState === 'ended')) {
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: false,
+        },
+      })
     }
   }
 

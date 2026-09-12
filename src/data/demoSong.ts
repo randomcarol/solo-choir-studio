@@ -6,13 +6,30 @@ export const voiceParts: Record<VoicePartId, VoicePart> = {
   bass: { id: 'bass', name: '低声部', shortName: '低', color: '#8e8173' },
 }
 
-const altoPatterns = [
-  [60, 62, 64, 62, 59, 60],
-  [57, 60, 62, 65, 64, 62],
-  [64, 64, 62, 60, 59, 57],
-  [60, 63, 65, 67, 65, 63],
-  [62, 60, 57, 59, 60, 60],
-]
+// 完全虚构的五句示例：三条声部采用较平稳的三和声音型，避免机械式平行五度。
+const partPatterns: Record<VoicePartId, number[][]> = {
+  soprano: [
+    [64, 65, 67, 71, 67, 65],
+    [65, 67, 69, 72, 71, 67],
+    [67, 71, 72, 71, 67, 65],
+    [71, 72, 71, 67, 65, 64],
+    [67, 65, 64, 65, 64, 64],
+  ],
+  alto: [
+    [60, 62, 64, 67, 64, 62],
+    [62, 64, 65, 69, 67, 64],
+    [64, 67, 69, 67, 64, 62],
+    [67, 69, 67, 64, 62, 60],
+    [64, 62, 60, 62, 60, 60],
+  ],
+  bass: [
+    [48, 50, 48, 43, 48, 50],
+    [50, 48, 53, 53, 55, 48],
+    [48, 43, 41, 43, 48, 50],
+    [43, 41, 43, 48, 50, 48],
+    [48, 50, 48, 43, 48, 48],
+  ],
+}
 
 const rhythms = [
   [0, .68, 1.34, 2.08, 2.76, 3.46],
@@ -22,23 +39,23 @@ const rhythms = [
   [0, .7, 1.42, 2.1, 2.8, 3.46],
 ]
 
-function createNotes(segment: number, part: VoicePartId, offset: number): NoteEvent[] {
-  return altoPatterns[segment].map((midi, index) => ({
+function createNotes(segment: number, part: VoicePartId): NoteEvent[] {
+  return partPatterns[part][segment].map((midi, index) => ({
     id: `${segment + 1}-${part}-${index + 1}`,
     start: rhythms[segment][index],
     duration: index === 5 ? 1.18 : index % 2 === 0 ? .58 : .52,
-    midi: midi + offset,
+    midi,
   }))
 }
 
-export const practiceSegments: PracticeSegment[] = altoPatterns.map((_, index) => ({
+export const practiceSegments: PracticeSegment[] = partPatterns.alto.map((_, index) => ({
   id: `segment-${index + 1}`,
   name: `第 ${index + 1} 段`,
   duration: 5,
   notes: {
-    soprano: createNotes(index, 'soprano', 7),
-    alto: createNotes(index, 'alto', 0),
-    bass: createNotes(index, 'bass', -12),
+    soprano: createNotes(index, 'soprano'),
+    alto: createNotes(index, 'alto'),
+    bass: createNotes(index, 'bass'),
   },
 }))
 

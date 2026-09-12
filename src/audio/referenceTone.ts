@@ -46,15 +46,43 @@ export class ReferenceTonePlayer {
   private scheduleOscillator(context: AudioContext, midi: number, start: number, duration: number, peak: number, timbre: 'piano' | 'voice', output: AudioNode): void {
     const oscillator = context.createOscillator()
     const gain = context.createGain()
-    oscillator.type = timbre === 'voice' ? 'sine' : 'triangle'
+    const filter = context.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.value = timbre === 'voice' ? 1650 : 2800
+    filter.Q.value = timbre === 'voice' ? .65 : .25
+    if (timbre === 'voice') {
+      const real = new Float32Array(6)
+      const imaginary = new Float32Array([0, 1, .24, .1, .045, .018])
+      oscillator.setPeriodicWave(context.createPeriodicWave(real, imaginary))
+    } else {
+      oscillator.type = 'triangle'
+    }
     oscillator.frequency.value = midiToFrequency(midi)
+    const end = start + Math.max(.08, duration)
+    const attackEnd = start + Math.min(timbre === 'voice' ? .075 : .018, duration * .3)
+    const releaseStart = Math.max(attackEnd + .005, end - Math.min(timbre === 'voice' ? .13 : .08, duration * .35))
     gain.gain.setValueAtTime(.0001, start)
-    gain.gain.exponentialRampToValueAtTime(peak, start + .025)
-    gain.gain.exponentialRampToValueAtTime(.0001, start + Math.max(.08, duration))
-    oscillator.connect(gain).connect(output)
+    gain.gain.exponentialRampToValueAtTime(peak, attackEnd)
+    gain.gain.setValueAtTime(peak * (timbre === 'voice' ? .82 : .58), releaseStart)
+    gain.gain.exponentialRampToValueAtTime(.0001, end)
+    oscillator.connect(filter).connect(gain).connect(output)
+
+    let vibrato: OscillatorNode | undefined
+    if (timbre === 'voice') {
+      vibrato = context.createOscillator()
+      const vibratoDepth = context.createGain()
+      vibrato.frequency.value = 5.1
+      vibratoDepth.gain.value = 4.2
+      vibrato.connect(vibratoDepth).connect(oscillator.detune)
+      vibrato.start(start)
+      vibrato.stop(end + .03)
+      this.active.push(vibrato)
+    }
     oscillator.start(start)
-    oscillator.stop(start + duration + .04)
+    oscillator.stop(end + .03)
     this.active.push(oscillator)
-    oscillator.onended = () => { this.active = this.active.filter((item) => item !== oscillator) }
+    oscillator.onended = () => {
+      this.active = this.active.filter((item) => item !== oscillator && item !== vibrato)
+    }
   }
 }

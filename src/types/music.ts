@@ -41,6 +41,18 @@ export interface PitchReading {
   capturedAt: number
 }
 
+export interface TrackAlignment {
+  /** 倒计时结束的拍点在原始录音中的位置。 */
+  expectedOnset: number
+  /** 本地能量检测找到的第一次稳定发声。 */
+  detectedOnset: number
+  /** 正数表示唱晚了，负数表示唱早了。 */
+  offsetSeconds: number
+  /** 合唱试听时从原始音轨的这个位置开始播放。 */
+  trimSeconds: number
+  confidence: number
+}
+
 export interface RecordingTrack {
   id: VoicePartId
   part: VoicePart
@@ -52,6 +64,7 @@ export interface RecordingTrack {
   muted: boolean
   solo: boolean
   startedAt?: number
+  alignment?: TrackAlignment
 }
 
 export interface SavedProject {

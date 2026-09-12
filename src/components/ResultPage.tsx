@@ -32,7 +32,7 @@ export function ResultPage({ tracks, onBack, onSave }: { tracks: RecordingTrack[
           <div className="wave-row" key={track.id} style={{ '--delay': `${index * .13}s` } as React.CSSProperties}>
             <span style={{ background: track.part.color }}>{track.part.shortName}</span>
             <div>{Array.from({ length: 28 }, (_, i) => <i key={i} style={{ height: `${8 + ((i * (index + 3)) % 17)}px` }} />)}</div>
-            <small>{track.blob ? '你的录音' : 'AI 占位'}</small>
+            <small>{track.blob ? (track.alignment ? '你的录音 · 已对齐' : '你的录音') : '合成占位'}</small>
           </div>
         ))}
       </div>
@@ -42,6 +42,7 @@ export function ResultPage({ tracks, onBack, onSave }: { tracks: RecordingTrack[
           <a key={track.id} href={track.objectUrl} download={`我的${track.part.name}.${track.blob?.type.includes('mp4') ? 'm4a' : 'webm'}`} aria-label={`下载自己录制的${track.part.name}`}>下载我的{track.part.name} <span aria-hidden="true">↓</span></a>
         )) : <p>当前使用合成占位。返回重录后，可分别下载自己的音轨。</p>}
       </div>
+      {tracks.some((track) => track.blob) && <p className="raw-track-note">下载的是未经移动的独立原始音轨；合唱试听使用自动对齐版本。</p>}
       <button className="primary-button page-action" onClick={toggle}>{playing ? '停止播放' : '重新播放'} <span aria-hidden="true">{playing ? '■' : '▶'}</span></button>
       <div className="result-actions"><button className="outline-button" onClick={onBack}>返回重录</button><button className="outline-button" onClick={save}>{saved ? '已保存' : '保存本次状态'}</button></div>
       <CopyrightNote />

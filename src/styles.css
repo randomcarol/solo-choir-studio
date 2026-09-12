@@ -215,6 +215,7 @@ h1 { margin: 0; max-width: 660px; font-size: clamp(2rem, 7.6vw, 4.1rem); line-he
 .track-actions.three-actions { grid-template-columns: repeat(3, 1fr); }
 .track-actions.one-action { grid-template-columns: 1fr; }
 .track-actions button { min-height: 44px; padding: 0 4px; border: 0; border-radius: 10px; background: #eee7df; color: #5f5552; cursor: pointer; font-size: .72rem; }.track-actions button:disabled { opacity: .42; cursor: not-allowed; }.track-actions .record-stop { color: #fff; background: var(--rose-dark); }
+.alignment-note { margin: 10px 0 -2px; padding: 8px 10px; border-radius: 10px; color: #527060; background: rgba(207, 224, 210, .5); font-size: .68rem; line-height: 1.45; }
 .mix-controls { margin-top: 12px; padding-top: 12px; display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; border-top: 1px solid var(--line); }
 .mix-controls label { min-width: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center; color: var(--muted); font-size: .68rem; }.mix-controls input { min-width: 0; width: 100%; accent-color: var(--rose); }.mix-controls button { min-height: 44px; padding: 0 9px; border: 1px solid var(--line); border-radius: 9px; background: transparent; font-size: .68rem; cursor: pointer; }.mix-controls button.active { color: #fff; background: var(--rose-dark); }
 .track-mix { margin-top: 8px; }
@@ -236,6 +237,7 @@ h1 { margin: 0; max-width: 660px; font-size: clamp(2rem, 7.6vw, 4.1rem); line-he
 .wave-row { display: grid; grid-template-columns: 34px 1fr 58px; gap: 10px; align-items: center; }.wave-row > span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: #fff; font-size: .72rem; }.wave-row > div { height: 30px; display: flex; gap: 2px; align-items: center; overflow: hidden; }.wave-row i { flex: 1; min-width: 2px; display: block; border-radius: 5px; background: #9d918b; transform-origin: center; }.wave-row small { color: #b8ada7; font-size: .62rem; text-align: right; }
 .wave-stage.playing .wave-row i { animation: wave .68s ease-in-out infinite alternate; animation-delay: calc(var(--delay) + var(--i, 0s)); }.wave-stage.playing .wave-row i:nth-child(3n) { animation-delay: -.25s; }.wave-stage.playing .wave-row i:nth-child(4n) { animation-delay: -.45s; }
 .result-disclaimer { color: var(--muted); font-size: .76rem; line-height: 1.6; text-align: center; }
+.raw-track-note { margin: -2px 8px 12px; color: var(--muted); font-size: .68rem; line-height: 1.5; text-align: center; }
 .download-list { margin: 18px 0; display: grid; gap: 7px; }.download-list a { min-height: 44px; padding: 0 13px; display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--line); border-radius: 12px; color: var(--rose-dark); text-decoration: none; font-size: .78rem; }.download-list p { margin: 0; padding: 15px; color: var(--muted); background: #eee7df; border-radius: 13px; font-size: .74rem; line-height: 1.55; }
 .result-actions { margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }.result-actions button { width: 100%; }
 

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { analyzeRecordingAlignment } from '../audio/alignment'
+import { resumeAudioContext } from '../audio/audioContext'
 import { MultiTrackPlayer, type ReverbPreset } from '../audio/multitrackPlayer'
 import { SessionRecorder } from '../audio/recordingManager'
 import { ReferenceTonePlayer } from '../audio/referenceTone'
@@ -15,6 +17,7 @@ export function RecordPage({ tracks, setTracks, onRecorded, onComplete }: {
   const recorder = useRef(new SessionRecorder())
   const multiPlayer = useRef(new MultiTrackPlayer())
   const guidePlayer = useRef(new ReferenceTonePlayer())
+  const expectedOnsets = useRef(new Map<VoicePartId, number>())
   const [activeTrack, setActiveTrack] = useState<VoicePartId | null>(null)
   const [countdown, setCountdown] = useState<number | null>(null)
   const [error, setError] = useState('')
@@ -31,8 +34,11 @@ export function RecordPage({ tracks, setTracks, onRecorded, onComplete }: {
   async function startRecording(id: VoicePartId) {
     setError('')
     multiPlayer.current.stop()
+    let captureStarted = false
     try {
       await recorder.current.prepare()
+      const captureStartedAt = await recorder.current.start()
+      captureStarted = true
       setActiveTrack(id)
       updateTrack(id, { status: 'counting' })
       for (let beat = 4; beat >= 1; beat -= 1) {
@@ -41,15 +47,23 @@ export function RecordPage({ tracks, setTracks, onRecorded, onComplete }: {
         await new Promise((resolve) => setTimeout(resolve, 620))
       }
       setCountdown(null)
-      const startedAt = await recorder.current.start()
-      updateTrack(id, { status: 'recording', startedAt })
+      const context = await resumeAudioContext()
+      const musicalStartAt = context.currentTime + .06
+      expectedOnsets.current.set(id, Math.max(0, musicalStartAt - captureStartedAt))
+      updateTrack(id, { status: 'recording', startedAt: captureStartedAt, alignment: undefined })
       const otherParts = tracks.filter((track) => track.id !== id)
-      await Promise.all(otherParts.map((track) => guidePlayer.current.schedule({ notes: segment.notes[track.id], gain: .055, timbre: 'voice', when: startedAt + .05 })))
+      await Promise.all(otherParts.map((track) => guidePlayer.current.schedule({ notes: segment.notes[track.id], gain: .048, timbre: 'voice', when: musicalStartAt })))
     } catch {
+      if (captureStarted) {
+        try {
+          const abandoned = await recorder.current.stop()
+          URL.revokeObjectURL(abandoned.objectUrl)
+        } catch { /* recorder already stopped */ }
+      }
       setCountdown(null)
       setActiveTrack(null)
       updateTrack(id, { status: 'empty' })
-      setError('没有取得麦克风权限。请在浏览器地址栏允许后重试；也可以保留 AI 哼唱占位，继续体验合唱。')
+      setError('没有取得麦克风权限。请在浏览器地址栏允许后重试；也可以保留合成哼唱占位，继续体验合唱。')
     }
   }
 
@@ -58,9 +72,22 @@ export function RecordPage({ tracks, setTracks, onRecorded, onComplete }: {
     guidePlayer.current.stop()
     try {
       const result = await recorder.current.stop()
+      const expectedOnset = expectedOnsets.current.get(activeTrack) ?? 0
+      let alignment
+      try {
+        alignment = await analyzeRecordingAlignment(result.blob, expectedOnset)
+      } catch {
+        alignment = {
+          expectedOnset,
+          detectedOnset: expectedOnset,
+          offsetSeconds: 0,
+          trimSeconds: expectedOnset,
+          confidence: 0,
+        }
+      }
       const previous = tracks.find((track) => track.id === activeTrack)
       if (previous?.objectUrl) URL.revokeObjectURL(previous.objectUrl)
-      updateTrack(activeTrack, { status: 'ready', ...result })
+      updateTrack(activeTrack, { status: 'ready', ...result, alignment })
       onRecorded(activeTrack)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '录音未能保存，请重试。')
@@ -71,14 +98,21 @@ export function RecordPage({ tracks, setTracks, onRecorded, onComplete }: {
   function deleteTrack(id: VoicePartId) {
     const track = tracks.find((item) => item.id === id)
     if (track?.objectUrl) URL.revokeObjectURL(track.objectUrl)
-    updateTrack(id, { status: 'empty', blob: undefined, objectUrl: undefined, duration: undefined, startedAt: undefined })
+    expectedOnsets.current.delete(id)
+    updateTrack(id, { status: 'empty', blob: undefined, objectUrl: undefined, duration: undefined, startedAt: undefined, alignment: undefined })
   }
 
   async function playTrack(track: RecordingTrack) {
-    if (!track.objectUrl) return
-    const audio = new Audio(track.objectUrl)
-    audio.volume = track.volume
-    await audio.play()
+    await multiPlayer.current.playSingle(track)
+  }
+
+  function alignmentLabel(track: RecordingTrack): string {
+    if (!track.alignment || track.alignment.confidence === 0) return '已按倒计时拍点对齐'
+    const milliseconds = Math.round(Math.abs(track.alignment.offsetSeconds) * 1000)
+    if (milliseconds < 45) return '进入很准 · 已自动对齐'
+    return track.alignment.offsetSeconds > 0
+      ? `晚进入 ${milliseconds}ms · 合唱时已前移`
+      : `早进入 ${milliseconds}ms · 合唱时已后移`
   }
 
   async function toggleAll() {
@@ -99,7 +133,7 @@ export function RecordPage({ tracks, setTracks, onRecorded, onComplete }: {
   return (
     <section className="page record-page">
       <StageDots page="record" />
-      <PageIntro eyebrow="第 3 步 · 录声部" title="先录中声部，再听三个你。" description="点一次录制，四拍后从头唱完整句；高、低声部暂时由合成哼唱补上。" />
+      <PageIntro eyebrow="第 3 步 · 录声部" title="先录中声部，再听三个你。" description="录音会提前开始收音；四拍后开唱。即使进早或进晚，合唱试听也会自动对齐。" />
       <StepBrief action="至少录下推荐的中声部" outcome="高、低声部想唱时再替换，不是必做；录完直接点底部听合唱。" />
       {countdown !== null && <div className="countdown-overlay" role="status" aria-live="assertive"><small>准备吸气</small><strong>{countdown}</strong><span>四拍后开始</span></div>}
       {error && <div className="inline-error" role="alert"><p>{error}</p><button onClick={() => setError('')}>知道了</button></div>}
@@ -111,10 +145,11 @@ export function RecordPage({ tracks, setTracks, onRecorded, onComplete }: {
               <span className="part-chip" style={{ background: track.part.color }}>{track.part.shortName}</span>
               <div>
                 <h2>{track.part.name}{track.id === 'alto' && <em>先录这个</em>}</h2>
-                <p>{track.status === 'ready' ? `你的录音 · ${track.duration?.toFixed(1)} 秒` : track.status === 'recording' ? '正在录制你的声音…' : track.status === 'counting' ? '四拍倒计时，准备吸气…' : 'AI 哼唱占位'}</p>
+                <p>{track.status === 'ready' ? `你的独立录音 · ${Math.max(0, (track.duration ?? 0) - (track.alignment?.trimSeconds ?? 0)).toFixed(1)} 秒` : track.status === 'recording' ? '正在录制你的声音…' : track.status === 'counting' ? '已经收音 · 四拍倒计时…' : '柔和合成哼唱占位（非真人）'}</p>
               </div>
               <div className={`level-bars ${track.status === 'recording' ? 'moving' : ''}`} aria-hidden="true">{[2, 4, 7, 5, 3].map((n, i) => <i key={i} style={{ height: `${n * 3}px` }} />)}</div>
             </div>
+            {track.status === 'ready' && <p className="alignment-note">{alignmentLabel(track)}。原始音轨保持不变。</p>}
             <div className={`track-actions ${track.status === 'ready' ? 'three-actions' : 'one-action'}`}>
               {track.status === 'recording' ? (
                 <button className="record-stop" onClick={stopRecording} aria-label={`停止录制${track.part.name}`}><span aria-hidden="true">■</span> 唱完了，停止录制</button>
