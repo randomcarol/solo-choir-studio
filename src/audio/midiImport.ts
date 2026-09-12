@@ -9,19 +9,12 @@ function syntheticPart(notes: NoteEvent[], part: 'soprano' | 'bass'): NoteEvent[
   return notes.map((note) => ({ ...note, id: `${part}-${note.id}`, midi: note.midi + (part === 'soprano' ? 3 : -12) }))
 }
 
-export async function importLocalMidi(file: File): Promise<Song> {
-  if (file.size > 5 * 1024 * 1024) throw new Error('MIDI 文件请控制在 5MB 以内')
-  const midi = new Midi(await file.arrayBuffer())
-  const pitchedTracks = midi.tracks.filter((track) => track.notes.length > 0 && track.instrument.percussion === false)
-  if (!pitchedTracks.length) throw new Error('没有在这个 MIDI 中找到可练习的音符轨道')
-
-  const ordered = [...pitchedTracks].sort((a, b) => averagePitch(b.notes) - averagePitch(a.notes)).slice(0, 3)
-  const normalized = ordered.map((track, trackIndex) => track.notes.map((note, noteIndex) => ({
-    id: `midi-${trackIndex}-${noteIndex}`,
-    start: note.time,
-    duration: Math.max(.08, note.duration),
-    midi: note.midi,
-  })))
+export function buildImportedSong(title: string, sourceTracks: NoteEvent[][], format: 'MIDI' | 'MusicXML'): Song {
+  const normalized = [...sourceTracks]
+    .filter((notes) => notes.length > 0)
+    .sort((a, b) => averagePitch(b) - averagePitch(a))
+    .slice(0, 3)
+  if (!normalized.length) throw new Error(`没有在这个 ${format} 中找到可练习的音符轨道`)
   const alto = normalized.length >= 3 ? normalized[1] : normalized[normalized.length - 1]
   const parts: Record<VoicePartId, NoteEvent[]> = {
     soprano: normalized.length >= 2 ? normalized[0] : syntheticPart(alto, 'soprano'),
@@ -43,10 +36,23 @@ export async function importLocalMidi(file: File): Promise<Song> {
 
   return {
     id: `local-midi-${Date.now()}`,
-    title: file.name.replace(/\.(mid|midi)$/i, ''),
+    title,
     artist: '你的本地文件',
     songwriter: '由文件提供者确认',
     segments,
-    rights: { status: 'user-provided', notice: '仅在当前浏览器内解析，文件未上传；请确保你拥有使用权' },
+    rights: { status: 'user-provided', notice: `${format} 仅在当前浏览器内解析，文件未上传；请确保你拥有使用权` },
   }
+}
+
+export async function importLocalMidi(file: File): Promise<Song> {
+  if (file.size > 5 * 1024 * 1024) throw new Error('MIDI 文件请控制在 5MB 以内')
+  const midi = new Midi(await file.arrayBuffer())
+  const pitchedTracks = midi.tracks.filter((track) => track.notes.length > 0 && track.instrument.percussion === false)
+  const tracks = pitchedTracks.map((track, trackIndex) => track.notes.map((note, noteIndex) => ({
+    id: `midi-${trackIndex}-${noteIndex}`,
+    start: note.time,
+    duration: Math.max(.08, note.duration),
+    midi: note.midi,
+  })))
+  return buildImportedSong(file.name.replace(/\.(mid|midi)$/i, ''), tracks, 'MIDI')
 }

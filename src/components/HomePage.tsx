@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { importLocalMidi } from '../audio/midiImport'
+import { importLocalScore } from '../audio/localScoreImport'
 import type { SavedProject, Song } from '../types/music'
 import { CopyrightNote } from './Chrome'
 
@@ -25,11 +25,11 @@ export function HomePage({ songs, rainbowSong, selectedSong, saved, onSelectSong
   const [confirmed, setConfirmed] = useState(false)
   const [importError, setImportError] = useState('')
 
-  async function importMidi(file: File | undefined) {
+  async function importScore(file: File | undefined) {
     if (!file) return
     setImportError('')
-    try { onImportSong(await importLocalMidi(file)) }
-    catch (reason) { setImportError(reason instanceof Error ? reason.message : '这个 MIDI 暂时无法解析') }
+    try { onImportSong(await importLocalScore(file)) }
+    catch (reason) { setImportError(reason instanceof Error ? reason.message : '这个乐谱文件暂时无法解析') }
   }
   return (
     <section className="home" id="top">
@@ -55,10 +55,10 @@ export function HomePage({ songs, rainbowSong, selectedSong, saved, onSelectSong
       </section>
 
       <details className="local-import">
-        <summary>使用我有权使用的本地 MIDI</summary>
-        <p>文件只在当前浏览器解析，不会上传。优先读取三个有音符的轨道；单轨文件会生成合成和声占位。</p>
+        <summary>使用我有权使用的本地乐谱</summary>
+        <p>支持 MIDI 和未压缩 MusicXML。文件只在当前浏览器解析，不会上传；单声部文件会生成合成和声占位。</p>
         <label className="rights-confirm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />我确认拥有该文件的测试和使用权</label>
-        <label className={`file-picker ${confirmed ? '' : 'disabled'}`}>选择 MIDI 文件<input type="file" accept=".mid,.midi,audio/midi,audio/x-midi" disabled={!confirmed} onChange={(event) => void importMidi(event.target.files?.[0])} /></label>
+        <label className={`file-picker ${confirmed ? '' : 'disabled'}`}>选择 MIDI / MusicXML<input type="file" accept=".mid,.midi,.musicxml,.xml,audio/midi,audio/x-midi,application/vnd.recordare.musicxml+xml" disabled={!confirmed} onChange={(event) => void importScore(event.target.files?.[0])} /></label>
         {importError && <p className="import-error" role="alert">{importError}</p>}
       </details>
 
