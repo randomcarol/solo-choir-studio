@@ -22,13 +22,26 @@ export function AppHeader({ page, onHome, onBack }: { page: AppPage; onHome: () 
 }
 
 export function StageDots({ page }: { page: AppPage }) {
-  const stages: AppPage[] = ['assessment', 'practice', 'record', 'result']
-  const current = Math.max(0, stages.indexOf(page))
+  const stages: { id: AppPage; label: string }[] = [
+    { id: 'assessment', label: '测声音' },
+    { id: 'practice', label: '跟唱' },
+    { id: 'record', label: '录声部' },
+    { id: 'result', label: '听合唱' },
+  ]
+  const current = Math.max(0, stages.findIndex((stage) => stage.id === page))
   return (
-    <div className="stage-dots" aria-label={`体验进度，第 ${current + 1} 步，共 4 步`}>
-      {stages.map((stage, index) => <span key={stage} className={index <= current ? 'active' : ''} />)}
-    </div>
+    <nav className="stage-progress" aria-label={`体验进度，第 ${current + 1} 步，共 4 步`}>
+      <ol>{stages.map((stage, index) => (
+        <li key={stage.id} className={index === current ? 'current' : index < current ? 'done' : ''} aria-current={index === current ? 'step' : undefined}>
+          <span>{index < current ? '✓' : index + 1}</span><small>{stage.label}</small>
+        </li>
+      ))}</ol>
+    </nav>
   )
+}
+
+export function StepBrief({ action, outcome }: { action: string; outcome: string }) {
+  return <aside className="step-brief"><span aria-hidden="true">→</span><div><strong>这一步：{action}</strong><p>{outcome}</p></div></aside>
 }
 
 export function CopyrightNote() {

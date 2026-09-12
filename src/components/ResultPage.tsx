@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { MultiTrackPlayer } from '../audio/multitrackPlayer'
 import { practiceSegments } from '../data/demoSong'
 import type { RecordingTrack } from '../types/music'
-import { CopyrightNote, StageDots } from './Chrome'
+import { CopyrightNote, StageDots, StepBrief } from './Chrome'
 
 export function ResultPage({ tracks, onBack, onSave }: { tracks: RecordingTrack[]; onBack: () => void; onSave: () => void }) {
   const player = useRef(new MultiTrackPlayer())
@@ -22,6 +22,7 @@ export function ResultPage({ tracks, onBack, onSave }: { tracks: RecordingTrack[
   return (
     <section className="page result-page">
       <StageDots page="result" />
+      <StepBrief action="试听这次合唱" outcome="满意就保存项目状态；想换一条声部，返回重录即可。" />
       <div className="result-hero">
         <p className="eyebrow">一次小小的相遇</p><h1>三个你，<br />正在合唱。</h1>
         <button className={`result-play ${playing ? 'playing' : ''}`} onClick={toggle} aria-label={playing ? '停止播放合唱' : '重新播放合唱'}><span aria-hidden="true">{playing ? '■' : '▶'}</span></button>

@@ -15,18 +15,18 @@ const altoPatterns = [
 ]
 
 const rhythms = [
-  [0, 1.1, 2.05, 3.2, 4.2, 5.15],
-  [0, .9, 2, 3.05, 4.4, 5.25],
-  [0, 1.25, 2.15, 3.05, 4.15, 5.1],
-  [0, 1, 1.9, 3.1, 4.05, 5.2],
-  [0, 1.1, 2.25, 3.15, 4.15, 5.05],
+  [0, .68, 1.34, 2.08, 2.76, 3.46],
+  [0, .62, 1.32, 2.02, 2.82, 3.52],
+  [0, .72, 1.4, 2.06, 2.78, 3.48],
+  [0, .66, 1.3, 2.04, 2.72, 3.5],
+  [0, .7, 1.42, 2.1, 2.8, 3.46],
 ]
 
 function createNotes(segment: number, part: VoicePartId, offset: number): NoteEvent[] {
   return altoPatterns[segment].map((midi, index) => ({
     id: `${segment + 1}-${part}-${index + 1}`,
     start: rhythms[segment][index],
-    duration: index === 5 ? 1.45 : index % 2 === 0 ? .82 : .68,
+    duration: index === 5 ? 1.18 : index % 2 === 0 ? .58 : .52,
     midi: midi + offset,
   }))
 }
@@ -34,7 +34,7 @@ function createNotes(segment: number, part: VoicePartId, offset: number): NoteEv
 export const practiceSegments: PracticeSegment[] = altoPatterns.map((_, index) => ({
   id: `segment-${index + 1}`,
   name: `第 ${index + 1} 段`,
-  duration: 7,
+  duration: 5,
   notes: {
     soprano: createNotes(index, 'soprano', 7),
     alto: createNotes(index, 'alto', 0),
@@ -51,6 +51,15 @@ export const demoSong: Song = {
 }
 
 export const assessmentMidi = [55, 58, 60, 62, 65]
+
+export const assessmentPhraseNotes: NoteEvent[] = assessmentMidi.map((midi, index) => ({
+  id: `assessment-phrase-${index + 1}`,
+  start: index * .72,
+  duration: index === assessmentMidi.length - 1 ? 1.1 : .58,
+  midi,
+}))
+
+export const assessmentPhraseDuration = 4.2
 
 export const COPYRIGHT_NOTICE = '当前为产品体验版，示例旋律并非原曲。'
 

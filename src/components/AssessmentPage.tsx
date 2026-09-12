@@ -1,113 +1,119 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { assessmentMidi } from '../data/demoSong'
+import { useEffect, useRef, useState } from 'react'
+import { assessmentMidi, assessmentPhraseDuration, assessmentPhraseNotes } from '../data/demoSong'
 import { LocalPitchTracker, midiToNoteName } from '../audio/pitchDetection'
 import { ReferenceTonePlayer } from '../audio/referenceTone'
+import { getComfortableRange } from '../state/assessmentFlow'
 import type { PitchReading } from '../types/music'
-import { CopyrightNote, PageIntro, StageDots } from './Chrome'
+import { CopyrightNote, PageIntro, StageDots, StepBrief } from './Chrome'
 
-type AssessmentStatus = 'idle' | 'listening' | 'result' | 'error'
+type AssessmentStatus = 'intro' | 'demonstrating' | 'ready' | 'singing' | 'result' | 'error'
 
 export function AssessmentPage({ onComplete }: { onComplete: () => void }) {
   const tracker = useRef(new LocalPitchTracker())
   const player = useRef(new ReferenceTonePlayer())
-  const [status, setStatus] = useState<AssessmentStatus>('idle')
-  const [step, setStep] = useState(0)
-  const [direction, setDirection] = useState<'up' | 'down'>('up')
+  const timer = useRef<number | null>(null)
+  const samplesRef = useRef<number[]>([])
+  const [status, setStatus] = useState<AssessmentStatus>('intro')
   const [reading, setReading] = useState<PitchReading | null>(null)
   const [captured, setCaptured] = useState<number[]>([])
   const [error, setError] = useState('')
-  const sequence = useMemo(() => direction === 'up' ? assessmentMidi : [...assessmentMidi].reverse(), [direction])
 
-  useEffect(() => () => { tracker.current.stop(); player.current.stop() }, [])
+  useEffect(() => () => {
+    tracker.current.stop()
+    player.current.stop()
+    if (timer.current) window.clearTimeout(timer.current)
+  }, [])
 
-  async function begin() {
+  function playPhrase() {
+    player.current.stop()
+    setStatus('demonstrating')
+    timer.current = window.setTimeout(() => setStatus('ready'), assessmentPhraseDuration * 1000)
+    void player.current.schedule({ notes: assessmentPhraseNotes, gain: .16 }).catch(() => setStatus('ready'))
+  }
+
+  function finishMeasurement(values = samplesRef.current) {
+    tracker.current.stop()
+    player.current.stop()
+    if (timer.current) window.clearTimeout(timer.current)
+    setCaptured(values.length >= 8 ? values : assessmentMidi)
+    setStatus('result')
+  }
+
+  async function beginSinging() {
     setError('')
+    setReading(null)
+    samplesRef.current = []
     try {
-      await tracker.current.start(setReading)
-      setStatus('listening')
-      setStep(0)
-      setCaptured([])
-      await player.current.playNote(sequence[0])
-    } catch (reason) {
-      setError(reason instanceof Error && reason.message.includes('support') ? reason.message : '没有取得麦克风权限。请在浏览器地址栏允许麦克风后重试，或使用模拟结果继续。')
+      await tracker.current.start((nextReading) => {
+        setReading(nextReading)
+        if (nextReading?.stable) samplesRef.current.push(nextReading.midi)
+      })
+      setStatus('singing')
+      timer.current = window.setTimeout(() => finishMeasurement(), assessmentPhraseDuration * 1000 + 250)
+      void player.current.schedule({ notes: assessmentPhraseNotes, gain: .055 }).catch(() => undefined)
+    } catch {
+      setError('没有取得麦克风权限。请在浏览器地址栏允许麦克风后重试，或使用模拟结果继续。')
       setStatus('error')
     }
   }
 
-  async function next(useDetected = true) {
-    const value = useDetected && reading ? reading.midi : sequence[step]
-    const nextCaptured = [...captured, value]
-    setCaptured(nextCaptured)
-    if (step >= sequence.length - 1) {
-      tracker.current.stop()
-      setStatus('result')
-      return
-    }
-    const nextStep = step + 1
-    setStep(nextStep)
-    setReading(null)
-    await player.current.playNote(sequence[nextStep])
-  }
-
   function simulate() {
-    tracker.current.stop()
-    setCaptured([...assessmentMidi])
-    setStatus('result')
+    samplesRef.current = [...assessmentMidi]
+    finishMeasurement(assessmentMidi)
   }
 
-  const minMidi = captured.length ? Math.round(Math.min(...captured)) : 55
-  const maxMidi = captured.length ? Math.round(Math.max(...captured)) : 74
-  const centsText = reading ? `${reading.cents > 0 ? '+' : ''}${reading.cents} 音分` : '等待声音'
+  const range = getComfortableRange(captured)
+  const isWorking = status === 'demonstrating' || status === 'singing'
 
   return (
     <section className="page assessment-page">
       <StageDots page="assessment" />
-      <PageIntro eyebrow="01 · 测声音" title={status === 'result' ? '你的声音，适合从这里出发。' : '轻轻唱，不必用力够到。'} description={status === 'result' ? '这只是体验版的舒适区间判断，不是专业声乐鉴定。' : '我们会播放五个逐步变化的虚构示例音。听过以后，用“嗯”轻轻跟唱。'} />
+      <PageIntro
+        eyebrow="第 1 步 · 测声音"
+        title={status === 'result' ? '找到适合你的起点。' : '听一句，再完整跟唱一句。'}
+        description={status === 'result' ? '这是体验版的舒适区间判断，不是专业声乐鉴定。' : '不用逐个音确认。示范句约 4 秒，用“啦”从头唱到尾就完成。'}
+      />
+      {status !== 'result' && <StepBrief action="先听完整示范，再跟唱一遍" outcome="完成后会直接给出舒适音域和推荐声部，约 15 秒。" />}
 
-      {status === 'idle' && (
-        <div className="focus-panel assessment-start">
-          <div className="breath-orb" aria-hidden="true"><span>♪</span></div>
-          <fieldset className="direction-choice">
-            <legend>示例音走向</legend>
-            <button className={direction === 'up' ? 'selected' : ''} onClick={() => setDirection('up')} aria-pressed={direction === 'up'}>由低到高</button>
-            <button className={direction === 'down' ? 'selected' : ''} onClick={() => setDirection('down')} aria-pressed={direction === 'down'}>由高到低</button>
-          </fieldset>
-          <p className="permission-copy">点击后才会申请麦克风权限，声音只在本机处理。</p>
-          <button className="primary-button" onClick={begin}>开始测声音 <span aria-hidden="true">→</span></button>
-          <button className="quiet-button" onClick={simulate}>没有麦克风，使用模拟结果继续</button>
+      {(status === 'intro' || status === 'demonstrating' || status === 'ready') && (
+        <div className="focus-panel phrase-assessment">
+          <div className={`phrase-orb ${isWorking ? 'playing' : ''}`} aria-hidden="true"><span>啦</span></div>
+          <div className="phrase-visual" aria-label="一条由低到高的虚构示范旋律">
+            {assessmentPhraseNotes.map((note, index) => <i key={note.id} style={{ transform: `translateY(${-index * 4}px)`, width: `${index === 4 ? 22 : 13}%` }} />)}
+          </div>
+          {status === 'intro' && <><p className="stage-instruction"><strong>现在：只需要听</strong><span>点下面按钮，完整听一遍旋律。</span></p><button className="primary-button" onClick={playPhrase}>听完整示范句 <span aria-hidden="true">▶</span></button></>}
+          {status === 'demonstrating' && <p className="active-instruction" role="status"><span className="pulse-dot" />正在播放整句，请先听旋律走向…</p>}
+          {status === 'ready' && <><p className="stage-instruction"><strong>接着：从头跟唱</strong><span>点开始后，用“啦”完整唱完这一句。</span></p><button className="primary-button" onClick={beginSinging}>开始跟唱整句 <span aria-hidden="true">→</span></button><button className="quiet-button" onClick={playPhrase}>再听一遍</button><button className="quiet-button muted-link" onClick={simulate}>没有麦克风，使用模拟结果</button></>}
+        </div>
+      )}
+
+      {status === 'singing' && (
+        <div className="focus-panel phrase-singing">
+          <p className="active-instruction"><span className="pulse-dot" />正在听你唱完整一句</p>
+          <div className={`pitch-reading ${reading?.stable ? 'stable' : ''}`} aria-live="polite">
+            <small>当前音高</small><strong>{reading?.noteName ?? '—'}</strong>
+            <span>{reading ? `${reading.cents > 0 ? '+' : ''}${reading.cents} 音分` : '跟着旋律唱“啦”'}</span>
+            <em>{reading?.stable ? '很好，继续唱完整句' : '不用停下来确认，继续往后唱'}</em>
+          </div>
+          <p className="auto-note">唱完后会自动进入结果，无需点按。</p>
         </div>
       )}
 
       {status === 'error' && (
         <div className="focus-panel error-panel" role="alert">
           <span className="status-icon" aria-hidden="true">!</span><h2>麦克风还没有准备好</h2><p>{error}</p>
-          <button className="primary-button" onClick={begin}>再次请求麦克风</button>
+          <button className="primary-button" onClick={beginSinging}>重新开始跟唱</button>
           <button className="quiet-button" onClick={simulate}>使用模拟结果继续</button>
-        </div>
-      )}
-
-      {status === 'listening' && (
-        <div className="focus-panel listening-panel">
-          <div className="test-progress" aria-label={`第 ${step + 1} 个音，共 5 个`}><span>{step + 1}</span><i style={{ background: `linear-gradient(90deg, var(--rose) ${(step + 1) * 20}%, #e5dcd4 ${(step + 1) * 20}%)` }} /><small>5</small></div>
-          <button className="reference-note" onClick={() => player.current.playNote(sequence[step])} aria-label={`重播参考音 ${midiToNoteName(sequence[step])}`}>
-            <small>参考音 · 点按重播</small><strong>{midiToNoteName(sequence[step])}</strong><span aria-hidden="true">▶</span>
-          </button>
-          <div className={`pitch-reading ${reading?.stable ? 'stable' : ''}`} aria-live="polite">
-            <small>识别到</small><strong>{reading?.noteName ?? '—'}</strong><span>{centsText}</span>
-            <em>{reading?.stable ? '声音很稳定' : reading ? '保持一下这个音' : '请轻轻唱“嗯”'}</em>
-          </div>
-          <button className="primary-button" disabled={!reading?.stable} onClick={() => next(true)}>{step === 4 ? '完成测评' : '记下这个音'} <span aria-hidden="true">→</span></button>
-          <button className="quiet-button" onClick={() => next(false)}>环境嘈杂，跳过这个音</button>
         </div>
       )}
 
       {status === 'result' && (
         <div className="focus-panel result-card">
-          <span className="result-kicker">Demo 结果</span><p>舒适音域</p><h2>{midiToNoteName(minMidi)}–{midiToNoteName(maxMidi)}</h2>
+          <span className="result-kicker">整句测评完成</span><p>舒适音域</p><h2>{midiToNoteName(range.min)}–{midiToNoteName(range.max)}</h2>
           <div className="range-rail"><i /><span style={{ left: '22%' }} /><span style={{ left: '76%' }} /></div>
-          <div className="recommendation"><small>《彩虹》练习建议</small><strong>建议中声部，整体降低两个半音</strong><p>接下来的练习会使用虚构示例旋律。</p></div>
-          <button className="primary-button" onClick={onComplete}>开始练中声部 <span aria-hidden="true">→</span></button>
-          <button className="quiet-button" onClick={() => setStatus('idle')}>重新测一次</button>
+          <div className="recommendation"><small>下一步会发生什么</small><strong>建议中声部，整体降低两个半音</strong><p>接下来练 5 句虚构旋律；每句都是“先听一遍、再跟唱一遍”。</p></div>
+          <button className="primary-button" onClick={onComplete}>下一步：练 5 句 <span aria-hidden="true">→</span></button>
+          <button className="quiet-button" onClick={() => setStatus('intro')}>重新测一次</button>
         </div>
       )}
       <CopyrightNote />

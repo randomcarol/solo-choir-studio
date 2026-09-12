@@ -2,9 +2,9 @@ import type { SavedProject } from '../types/music'
 import { CopyrightNote } from './Chrome'
 
 const steps = [
-  ['01', '测声音', '找到唱起来最舒服的位置'],
-  ['02', '练声部', '跟着虚构示例旋律熟悉音高'],
-  ['03', '合起来', '录下三个自己，听见和声'],
+  ['01', '测声音', '听一句、唱一句，找到舒适音域'],
+  ['02', '练声部', '逐句听唱，5 句熟悉完整旋律'],
+  ['03', '合起来', '先录中声部，再听见三个自己'],
 ]
 
 const pageProgress = { home: 0, assessment: 1, practice: 2, record: 3, result: 4 }
