@@ -1,4 +1,4 @@
-import type { AppPage } from '../types/music'
+import type { AppPage, Song } from '../types/music'
 import { COPYRIGHT_NOTICE } from '../data/demoSong'
 
 const pageNames: Record<AppPage, string> = {
@@ -44,8 +44,8 @@ export function StepBrief({ action, outcome }: { action: string; outcome: string
   return <aside className="step-brief"><span aria-hidden="true">→</span><div><strong>这一步：{action}</strong><p>{outcome}</p></div></aside>
 }
 
-export function CopyrightNote() {
-  return <p className="copyright-note">{COPYRIGHT_NOTICE}</p>
+export function CopyrightNote({ song }: { song?: Song }) {
+  return <p className="copyright-note">{song?.rights?.notice ?? COPYRIGHT_NOTICE}</p>
 }
 
 export function PageIntro({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {

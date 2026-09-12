@@ -44,8 +44,8 @@ export function loadSavedProject(): SavedProject | null {
   } catch { return null }
 }
 
-export function saveProject(state: ProjectState): SavedProject {
-  const value: SavedProject = { songId: 'caihong-demo', ...state, updatedAt: new Date().toISOString() }
+export function saveProject(state: ProjectState, songId = 'ode-to-joy'): SavedProject {
+  const value: SavedProject = { songId, ...state, updatedAt: new Date().toISOString() }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
   return value
 }

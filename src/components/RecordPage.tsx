@@ -4,11 +4,12 @@ import { resumeAudioContext } from '../audio/audioContext'
 import { MultiTrackPlayer, type ReverbPreset } from '../audio/multitrackPlayer'
 import { SessionRecorder } from '../audio/recordingManager'
 import { ReferenceTonePlayer } from '../audio/referenceTone'
-import { practiceSegments } from '../data/demoSong'
-import type { RecordingTrack, VoicePartId } from '../types/music'
+import { combineSongSegments } from '../data/songLibrary'
+import type { RecordingTrack, Song, VoicePartId } from '../types/music'
 import { CopyrightNote, PageIntro, StageDots, StepBrief } from './Chrome'
 
-export function RecordPage({ tracks, setTracks, onRecorded, onComplete }: {
+export function RecordPage({ song, tracks, setTracks, onRecorded, onComplete }: {
+  song: Song
   tracks: RecordingTrack[]
   setTracks: React.Dispatch<React.SetStateAction<RecordingTrack[]>>
   onRecorded: (id: VoicePartId) => void
@@ -23,7 +24,7 @@ export function RecordPage({ tracks, setTracks, onRecorded, onComplete }: {
   const [error, setError] = useState('')
   const [reverb, setReverb] = useState<ReverbPreset>('hall')
   const [playingAll, setPlayingAll] = useState(false)
-  const segment = practiceSegments[0]
+  const segment = combineSongSegments(song)
 
   useEffect(() => () => { recorder.current.dispose(); multiPlayer.current.stop(); guidePlayer.current.stop() }, [])
 
@@ -133,7 +134,7 @@ export function RecordPage({ tracks, setTracks, onRecorded, onComplete }: {
   return (
     <section className="page record-page">
       <StageDots page="record" />
-      <PageIntro eyebrow="第 3 步 · 录声部" title="先录中声部，再听三个你。" description="录音会提前开始收音；四拍后开唱。即使进早或进晚，合唱试听也会自动对齐。" />
+      <PageIntro eyebrow={`第 3 步 · ${song.title}`} title="先录中声部，再听三个你。" description="四拍后从头唱完整旋律；即使进早或进晚，合唱试听也会自动对齐。" />
       <StepBrief action="至少录下推荐的中声部" outcome="高、低声部想唱时再替换，不是必做；录完直接点底部听合唱。" />
       {countdown !== null && <div className="countdown-overlay" role="status" aria-live="assertive"><small>准备吸气</small><strong>{countdown}</strong><span>四拍后开始</span></div>}
       {error && <div className="inline-error" role="alert"><p>{error}</p><button onClick={() => setError('')}>知道了</button></div>}
@@ -184,7 +185,7 @@ export function RecordPage({ tracks, setTracks, onRecorded, onComplete }: {
       </details>
       <button className="secondary-button listen-all" onClick={toggleAll}>{playingAll ? '停止合唱' : '先试听三个声部'} <span aria-hidden="true">{playingAll ? '■' : '▶'}</span></button>
       <button className="primary-button page-action" onClick={onComplete}>完成录音，听见三个我 <span aria-hidden="true">→</span></button>
-      <CopyrightNote />
+      <CopyrightNote song={song} />
     </section>
   )
 }

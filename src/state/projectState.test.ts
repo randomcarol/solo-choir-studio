@@ -21,7 +21,7 @@ describe('项目流程状态', () => {
 
   it('把不含音频 Blob 的进度保存到本机', () => {
     const saved = saveProject({ ...initialProjectState, page: 'result', assessmentComplete: true, recordedParts: ['alto'] })
-    expect(localStorage.getItem(STORAGE_KEY)).toContain('caihong-demo')
+    expect(localStorage.getItem(STORAGE_KEY)).toContain('ode-to-joy')
     expect(loadSavedProject()).toEqual(saved)
   })
 })

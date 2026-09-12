@@ -10,11 +10,12 @@
     "check": "tsc -b --pretty false && vitest run"
   },
   "dependencies": {
+    "@tonejs/midi": "^2.0.28",
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
+    "pitchy": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "pitchy": "latest"
+    "vite": "latest"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "latest",

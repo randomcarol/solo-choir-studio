@@ -29,6 +29,11 @@ export interface Song {
   artist: string
   songwriter: string
   segments: PracticeSegment[]
+  rights?: {
+    status: 'public-domain' | 'license-required' | 'user-provided'
+    notice: string
+    sourceUrl?: string
+  }
 }
 
 export interface PitchReading {

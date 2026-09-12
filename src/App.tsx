@@ -7,7 +7,8 @@ import { RecordPage } from './components/RecordPage'
 import { ResultPage } from './components/ResultPage'
 import { initialProjectState, loadSavedProject, projectReducer, saveProject } from './state/projectState'
 import { createInitialTracks } from './state/trackState'
-import type { AppPage, SavedProject } from './types/music'
+import { publicDomainSongs, rainbowPendingSong } from './data/songLibrary'
+import type { AppPage, SavedProject, Song } from './types/music'
 
 function previousPage(page: AppPage): AppPage {
   return { home: 'home', assessment: 'home', practice: 'assessment', record: 'practice', result: 'record' }[page] as AppPage
@@ -23,6 +24,7 @@ export default function App() {
   })
   const [saved, setSaved] = useState<SavedProject | null>(initialSaved)
   const [tracks, setTracks] = useState(createInitialTracks)
+  const [selectedSong, setSelectedSong] = useState<Song>(() => publicDomainSongs.find((song) => song.id === initialSaved?.songId) ?? publicDomainSongs[0])
 
   function navigate(page: AppPage) {
     dispatch({ type: 'navigate', page })
@@ -30,8 +32,13 @@ export default function App() {
   }
 
   function persist() {
-    const value = saveProject({ ...project, page: 'result' })
+    const value = saveProject({ ...project, page: 'result' }, selectedSong.id)
     setSaved(value)
+  }
+
+  function selectSong(song: Song) {
+    setSelectedSong(song)
+    setTracks(createInitialTracks())
   }
 
   useEffect(() => {
@@ -59,11 +66,11 @@ export default function App() {
   return (
     <main className="app-shell">
       <AppHeader page={project.page} onHome={() => navigate('home')} onBack={() => navigate(previousPage(project.page))} />
-      {project.page === 'home' && <HomePage saved={saved} onStart={() => navigate('assessment')} onResume={() => navigate(saved?.page === 'home' ? 'assessment' : saved?.page ?? 'assessment')} />}
-      {project.page === 'assessment' && <AssessmentPage onComplete={() => dispatch({ type: 'complete-assessment' })} />}
-      {project.page === 'practice' && <PracticePage onPracticed={(segmentId) => dispatch({ type: 'practice-segment', segmentId })} onComplete={() => navigate('record')} />}
-      {project.page === 'record' && <RecordPage tracks={tracks} setTracks={setTracks} onRecorded={(partId) => dispatch({ type: 'record-part', partId })} onComplete={() => navigate('result')} />}
-      {project.page === 'result' && <ResultPage tracks={tracks} onBack={() => navigate('record')} onSave={persist} />}
+      {project.page === 'home' && <HomePage songs={publicDomainSongs} rainbowSong={rainbowPendingSong} selectedSong={selectedSong} saved={saved} onSelectSong={selectSong} onImportSong={selectSong} onStart={() => navigate('assessment')} onResume={() => navigate(saved?.page === 'home' ? 'assessment' : saved?.page ?? 'assessment')} />}
+      {project.page === 'assessment' && <AssessmentPage song={selectedSong} onComplete={() => dispatch({ type: 'complete-assessment' })} />}
+      {project.page === 'practice' && <PracticePage song={selectedSong} onPracticed={(segmentId) => dispatch({ type: 'practice-segment', segmentId })} onComplete={() => navigate('record')} />}
+      {project.page === 'record' && <RecordPage song={selectedSong} tracks={tracks} setTracks={setTracks} onRecorded={(partId) => dispatch({ type: 'record-part', partId })} onComplete={() => navigate('result')} />}
+      {project.page === 'result' && <ResultPage song={selectedSong} tracks={tracks} onBack={() => navigate('record')} onSave={persist} />}
     </main>
   )
 }

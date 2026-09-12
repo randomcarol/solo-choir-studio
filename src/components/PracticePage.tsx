@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { LocalPitchTracker } from '../audio/pitchDetection'
 import { ReferenceTonePlayer } from '../audio/referenceTone'
-import { practiceSegments } from '../data/demoSong'
 import { createSimulatedPitchPoints } from '../state/practiceFlow'
-import type { PitchReading } from '../types/music'
+import type { PitchReading, Song } from '../types/music'
 import { CopyrightNote, PageIntro, StageDots, StepBrief } from './Chrome'
 import { PitchLane, type PitchPoint } from './PitchLane'
 
 type PhrasePhase = 'listen-ready' | 'listening' | 'sing-ready' | 'singing' | 'review' | 'mic-error'
 
-export function PracticePage({ onPracticed, onComplete }: { onPracticed: (id: string) => void; onComplete: () => void }) {
+export function PracticePage({ song, onPracticed, onComplete }: { song: Song; onPracticed: (id: string) => void; onComplete: () => void }) {
   const player = useRef(new ReferenceTonePlayer())
   const tracker = useRef(new LocalPitchTracker())
   const frame = useRef(0)
@@ -21,6 +20,7 @@ export function PracticePage({ onPracticed, onComplete }: { onPracticed: (id: st
   const [pitch, setPitch] = useState<PitchReading | null>(null)
   const [pitchPoints, setPitchPoints] = useState<PitchPoint[]>([])
   const [micError, setMicError] = useState('')
+  const practiceSegments = song.segments
   const segment = practiceSegments[sentenceIndex]
   const running = phase === 'listening' || phase === 'singing'
 
@@ -127,14 +127,14 @@ export function PracticePage({ onPracticed, onComplete }: { onPracticed: (id: st
   return (
     <section className="page practice-page phrase-practice-page">
       <StageDots page="practice" />
-      <PageIntro eyebrow="第 2 步 · 练声部" title="一句一句，听完就跟唱。" description="共 5 句虚构旋律。每句完整听一遍、完整唱一遍，不再逐个音停顿。" />
-      <StepBrief action="完成 5 句整句跟唱" outcome="每句约 5 秒；完成当前句后，唯一的主按钮会带你去下一句。" />
+      <PageIntro eyebrow={`第 2 步 · ${song.title}`} title="一句一句，听完就跟唱。" description={`这是真实可识别的完整公版旋律，共 ${practiceSegments.length} 段；不使用商业录音。`} />
+      <StepBrief action={`完成 ${practiceSegments.length} 段整句跟唱`} outcome="完成当前段后，主按钮会带你去下一段。" />
 
       <div className="sentence-status">
         <div><small>中声部练习</small><strong>第 {sentenceIndex + 1} 句 <em>/ 共 {practiceSegments.length} 句</em></strong></div>
         <span>{phaseLabel}</span>
       </div>
-      <div className="sentence-progress" aria-label={`已到第 ${sentenceIndex + 1} 句，共 ${practiceSegments.length} 句`}>
+      <div className="sentence-progress" style={{ gridTemplateColumns: `repeat(${practiceSegments.length}, 1fr)` }} aria-label={`已到第 ${sentenceIndex + 1} 句，共 ${practiceSegments.length} 句`}>
         {practiceSegments.map((item, index) => <i key={item.id} className={index < sentenceIndex ? 'done' : index === sentenceIndex ? 'active' : ''} />)}
       </div>
 
@@ -149,11 +149,11 @@ export function PracticePage({ onPracticed, onComplete }: { onPracticed: (id: st
         {phase === 'sing-ready' && <div className="single-action"><p><strong>轮到你：</strong>用“啦”从头唱到尾，途中不用点任何按钮。</p><button className="light-primary" onClick={singPhrase}>开始跟唱第 {sentenceIndex + 1} 句 <span aria-hidden="true">→</span></button><button className="surface-link" onClick={listenPhrase}>再听一遍</button><button className="surface-link quiet" onClick={simulatePhrase}>没有麦克风，模拟跟唱</button></div>}
         {phase === 'singing' && <div className="phrase-running-block"><p className="phrase-running" role="status"><span className="pulse-dot" />正在跟唱整句，唱完会自动停止</p><strong>{pitch?.stable ? '声音很稳定，继续往后唱' : pitch ? '再靠近蓝色音符一点' : '跟着导唱继续唱“啦”'}</strong></div>}
         {phase === 'mic-error' && <div className="single-action error-on-dark" role="alert"><p>{micError}</p><button className="light-primary" onClick={singPhrase}>重新连接麦克风</button><button className="surface-link" onClick={simulatePhrase}>模拟跟唱并继续</button></div>}
-        {phase === 'review' && <div className="single-action phrase-review"><p><strong>{feedback}</strong><span>{sentenceIndex === practiceSegments.length - 1 ? '五句都完成了，下一步开始录制声部。' : `接下来听第 ${sentenceIndex + 2} 句。`}</span></p><button className="light-primary" onClick={advance}>{sentenceIndex === practiceSegments.length - 1 ? '下一步：开始录音' : `下一句：第 ${sentenceIndex + 2} 句`} <span aria-hidden="true">→</span></button><button className="surface-link" onClick={retryPhrase}>再唱一次这句</button></div>}
+        {phase === 'review' && <div className="single-action phrase-review"><p><strong>{feedback}</strong><span>{sentenceIndex === practiceSegments.length - 1 ? '完整旋律已经练完，下一步开始录制声部。' : `接下来听第 ${sentenceIndex + 2} 段。`}</span></p><button className="light-primary" onClick={advance}>{sentenceIndex === practiceSegments.length - 1 ? '下一步：开始录音' : `下一段：第 ${sentenceIndex + 2} 段`} <span aria-hidden="true">→</span></button><button className="surface-link" onClick={retryPhrase}>再唱一次这段</button></div>}
         <PitchLane notes={segment.notes.alto} duration={segment.duration} elapsed={elapsed} pitchPoints={pitchPoints} />
         <div className="time-row"><span>{elapsed.toFixed(1)}s</span><strong>第 {sentenceIndex + 1} 句 · 中声部</strong><span>{segment.duration.toFixed(1)}s</span></div>
       </div>
-      <CopyrightNote />
+      <CopyrightNote song={song} />
     </section>
   )
 }

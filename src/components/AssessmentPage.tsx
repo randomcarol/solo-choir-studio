@@ -3,12 +3,12 @@ import { assessmentMidi, assessmentPhraseDuration, assessmentPhraseNotes } from 
 import { LocalPitchTracker, midiToNoteName } from '../audio/pitchDetection'
 import { ReferenceTonePlayer } from '../audio/referenceTone'
 import { getComfortableRange } from '../state/assessmentFlow'
-import type { PitchReading } from '../types/music'
+import type { PitchReading, Song } from '../types/music'
 import { CopyrightNote, PageIntro, StageDots, StepBrief } from './Chrome'
 
 type AssessmentStatus = 'intro' | 'demonstrating' | 'ready' | 'singing' | 'result' | 'error'
 
-export function AssessmentPage({ onComplete }: { onComplete: () => void }) {
+export function AssessmentPage({ song, onComplete }: { song: Song; onComplete: () => void }) {
   const tracker = useRef(new LocalPitchTracker())
   const player = useRef(new ReferenceTonePlayer())
   const timer = useRef<number | null>(null)
@@ -111,12 +111,12 @@ export function AssessmentPage({ onComplete }: { onComplete: () => void }) {
         <div className="focus-panel result-card">
           <span className="result-kicker">整句测评完成</span><p>舒适音域</p><h2>{midiToNoteName(range.min)}–{midiToNoteName(range.max)}</h2>
           <div className="range-rail"><i /><span style={{ left: '22%' }} /><span style={{ left: '76%' }} /></div>
-          <div className="recommendation"><small>下一步会发生什么</small><strong>建议中声部，整体降低两个半音</strong><p>接下来练 5 句虚构旋律；每句都是“先听一遍、再跟唱一遍”。</p></div>
-          <button className="primary-button" onClick={onComplete}>下一步：练 5 句 <span aria-hidden="true">→</span></button>
+          <div className="recommendation"><small>下一步会发生什么</small><strong>建议中声部，整体降低两个半音</strong><p>接下来练习《{song.title}》的 {song.segments.length} 个段落；每段都是“先听一遍、再跟唱一遍”。</p></div>
+          <button className="primary-button" onClick={onComplete}>下一步：练完整旋律 <span aria-hidden="true">→</span></button>
           <button className="quiet-button" onClick={() => setStatus('intro')}>重新测一次</button>
         </div>
       )}
-      <CopyrightNote />
+      <CopyrightNote song={song} />
     </section>
   )
 }
